@@ -6,7 +6,7 @@
     <title>Ângulos Pro! - Jogos Interativos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
- <style>
+    <style>
         html, body {
             overscroll-behavior: none; /* Bloqueia o "puxar para baixo" no celular */
         }
@@ -17,7 +17,7 @@
             color: #1e293b;
             position: fixed; /* Fixa o body para evitar qualquer rolagem nativa */
             width: 100%;
-            height: 100%;
+            height: 100dvh; /* Correção: Ajusta para a altura real visível do celular */
         }
         
         ::-webkit-scrollbar { width: 0px; background: transparent; }
@@ -114,9 +114,14 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 100;
         }
+
+        /* Correção: Evita que a barra inferior do iOS esconda o menu */
+        .pb-safe {
+            padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+        }
     </style>
 </head>
-<body class="h-screen w-screen overflow-hidden flex justify-center items-center p-2 sm:p-4">
+<body class="h-[100dvh] w-screen overflow-hidden flex justify-center items-center p-2 sm:p-4"> <!-- Correção: Classe h-[100dvh] aplicada -->
 
     <div id="confetti-container"></div>
 
@@ -414,8 +419,6 @@
             });
         });
 
-        // CORRIGIDO: só redimensiona quando o tamanho muda e usa setTransform
-        // (evita acumular scale e o loop de crescimento do canvas).
         function resizeCanvas(canvas) {
             const rect = canvas.parentElement.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
@@ -653,8 +656,6 @@
             }
         }
 
-        // Pointer Events: um único caminho para mouse, toque e caneta.
-        // setPointerCapture mantém o gesto preso ao canvas, impedindo o "puxão" da página.
         canvas2Current.addEventListener('pointerdown', (e) => {
             e.preventDefault();
             isDragging2 = true;
@@ -739,7 +740,6 @@
             }
             ctx3.beginPath(); ctx3.arc(cx, cy, 6, 0, Math.PI*2); ctx3.fillStyle = '#1e293b'; ctx3.fill();
         }
-
 
         // ==========================================
         // JOGO 4: CAÇA-ÂNGULOS
