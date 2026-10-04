@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ângulos Pro! - Jogos Interativos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+ <style>
+        html, body {
+            overscroll-behavior: none; /* Bloqueia o "puxar para baixo" no celular */
+        }
+        body {
+            font-family: 'Nunito', sans-serif;
+            touch-action: none; 
+            background: linear-gradient(135deg, #4f46e5 0%, #d946ef 100%);
+            color: #1e293b;
+            position: fixed; /* Fixa o body para evitar qualquer rolagem nativa */
+            width: 100%;
+            height: 100%;
+        }
+        
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .tab-content.active {
+            display: flex;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Áreas de desenho: o gesto pertence ao jogo, não à página. */
+        .angle-canvas {
+            touch-action: none !important;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            overscroll-behavior: contain;
+        }
+
+        /* Evita que o navegador tente fazer scroll/zoom durante os jogos. */
+        button, canvas {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .game-card {
+            min-height: 0;
+        }
+
+        .btn-game {
+            transition: transform 0.1s, box-shadow 0.1s, background-color 0.2s;
+            box-shadow: 0 6px 0 0 rgba(0,0,0,0.2);
+        }
+        .btn-game:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 0 rgba(0,0,0,0.2);
+        }
+
+        .nav-btn {
+            transition: all 0.2s;
+            position: relative;
+        }
+        .nav-btn.active {
+            color: #ec4899; 
+            transform: translateY(-4px);
+        }
+        .nav-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            background-color: #ec4899;
+            border-radius: 50%;
+        }
+
+        .quiz-option {
+            transition: all 0.2s;
+            border-bottom-width: 4px;
+        }
+        .quiz-option:active {
+            transform: translateY(2px);
+            border-bottom-width: 2px;
+        }
+        .quiz-option.correct {
+            background-color: #10b981; color: white; border-color: #047857;
+            animation: pulse-green 1s infinite;
+        }
+        .quiz-option.wrong {
+            background-color: #ef4444; color: white; border-color: #b91c1c;
+            animation: shake 0.4s;
+        }
+
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+
+        #confetti-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 100;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex justify-center items-center p-2 sm:p-4">
+
+    <div id="confetti-container"></div>
+
+    <div class="w-full max-w-md h-full max-h-[850px] bg-white rounded-3xl shadow-2xl flex flex-col relative overflow-hidden border-4 border-white/20">
+        
+        <header class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-4 shadow-md z-10 rounded-b-2xl">
+            <h1 class="text-2xl font-black text-center tracking-wide drop-shadow-md">📐 Ângulos Pro! 🎮</h1>
+        </header>
+
+        <main class="flex-1 relative overflow-y-auto overscroll-none bg-slate-50">
+            
+            <!-- ABA 1: Medir -->
+            <section id="tab1" class="tab-content active flex-col h-full p-4 relative">
+                <div class="text-center mb-4">
+                    <h2 class="text-xl font-bold text-indigo-900">Mestre dos Ângulos 🎮</h2>
+                    <p class="text-sm text-gray-500 font-semibold">Arraste a bolinha para mudar o ângulo!</p>
+                </div>
+                
+                <div class="flex-1 relative border-4 border-indigo-100 rounded-2xl overflow-hidden bg-white shadow-inner mb-4 flex items-center justify-center touch-none">
+                    <canvas id="canvas1" class="angle-canvas absolute top-0 left-0 w-full h-full cursor-pointer"></canvas>
+                </div>
+
+                <div class="bg-indigo-50 p-3 rounded-2xl border-2 border-indigo-100 text-center mb-4 flex justify-around items-center">
+                    <div>
+                        <div class="text-xs text-indigo-400 font-bold uppercase">Medida</div>
+                        <div class="text-3xl font-black text-indigo-600" id="angleDisplay">0°</div>
+                    </div>
+                    <div class="h-10 w-1 bg-indigo-200 rounded"></div>
+                    <div>
+                        <div class="text-xs text-indigo-400 font-bold uppercase">Classificação</div>
+                        <div class="text-lg font-bold text-pink-500 tracking-wide" id="angleClassification">Nulo ➖</div>
+                    </div>
+                </div>
+
+                <button id="toggleProtractorBtn" class="btn-game w-full py-4 bg-pink-500 hover:bg-pink-600 text-white font-black text-lg rounded-2xl flex justify-center items-center gap-2">
+                    🔍 Mostrar Transferidor
+                </button>
+            </section>
+
+            <!-- ABA 2: Congruentes -->
+            <section id="tab2" class="tab-content flex-col h-full p-4 relative overflow-hidden">
+                <div class="text-center mb-3">
+                    <h2 class="text-xl font-bold text-indigo-900">Desafio Congruente 🧩</h2>
+                    <p class="text-sm text-gray-500 font-semibold">Arraste a bolinha azul. A tela fica parada enquanto você joga!</p>
+                </div>
+
+                <div class="flex-1 min-h-0 flex flex-col gap-3 mb-4">
+                    <div class="flex-1 min-h-0 border-4 border-emerald-100 rounded-2xl bg-emerald-50 flex flex-col shadow-sm overflow-hidden">
+                        <div class="p-2 bg-emerald-500 text-center text-sm font-bold text-white">🎯 Alvo: <span id="targetAngleDisplay">--</span>°</div>
+                        <div class="relative flex-1 min-h-0">
+                            <canvas id="canvas2-target" class="angle-canvas absolute inset-0 w-full h-full"></canvas>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-h-0 border-4 border-blue-200 rounded-2xl bg-blue-50 flex flex-col touch-none shadow-sm overflow-hidden">
+                        <div class="p-2 bg-blue-500 text-center text-sm font-bold text-white">🕹️ Você: <span id="currentAngleDisplay">--</span>°</div>
+                        <div class="relative flex-1 min-h-0">
+                            <canvas id="canvas2-current" class="angle-canvas absolute inset-0 w-full h-full cursor-pointer"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="congruentSuccess" class="hidden bg-emerald-400 text-white px-4 py-3 rounded-2xl text-center font-bold text-lg mb-4 shadow-lg">
+                    ✨ Perfeito! São Congruentes! ✨
+                </div>
+                
+                <button id="newCongruentBtn" class="btn-game w-full py-4 bg-indigo-500 hover:bg-indigo-600 text-white font-black text-lg rounded-2xl">
+                    🎲 Novo Desafio
+                </button>
+            </section>
+
+            <!-- ABA 3: Adjacentes / Consecutivos -->
+            <section id="tab3" class="tab-content flex-col h-full p-4 relative">
+                <div class="text-center mb-4">
+                    <h2 class="text-xl font-bold text-indigo-900">Batalha de Ângulos ⚔️</h2>
+                    <p class="text-sm text-gray-500 font-semibold">Entenda a diferença visualmente!</p>
+                </div>
+
+                <div class="flex bg-gray-200 p-1 rounded-2xl mb-4 shadow-inner">
+                    <button id="btnConsecutive" class="flex-1 py-3 text-sm font-bold rounded-xl bg-white shadow-md text-blue-600 transition-all">Consecutivos</button>
+                    <button id="btnAdjacent" class="flex-1 py-3 text-sm font-bold rounded-xl text-gray-500 transition-all">Adjacentes</button>
+                </div>
+
+                <div class="flex-1 relative border-4 border-indigo-100 rounded-2xl overflow-hidden bg-white shadow-sm mb-4">
+                    <canvas id="canvas3" class="angle-canvas absolute top-0 left-0 w-full h-full"></canvas>
+                </div>
+
+                <div class="bg-amber-50 p-4 rounded-2xl border-4 border-amber-200 text-sm text-amber-900 font-medium shadow-sm" id="adjExplanation">
+                    <span class="text-lg block mb-1">🔥 <strong>Consecutivos:</strong></span>
+                    Eles dividem o mesmo vértice e uma linha (lado). Mas repare: a região de um "invade" a região do outro!
+                </div>
+            </section>
+
+
+            <!-- ABA 4: CAÇA-ÂNGULOS -->
+            <section id="tab4" class="tab-content flex-col h-full p-4 relative overflow-y-auto overscroll-contain">
+                <div class="text-center mb-3">
+                    <h2 class="text-xl font-bold text-indigo-900">Caça-Ângulos 🎯</h2>
+                    <p class="text-sm text-gray-500 font-semibold">Encontre o desenho que tem o ângulo pedido!</p>
+                </div>
+
+                <div class="bg-indigo-50 p-3 rounded-2xl border-2 border-indigo-100 text-center mb-3">
+                    <div class="text-xs text-indigo-400 font-bold uppercase">Alvo</div>
+                    <div class="text-3xl font-black text-indigo-600"><span id="hunterTarget">90</span>°</div>
+                    <div class="text-xs text-gray-500 font-semibold mt-1">Toque em uma das figuras.</div>
+                </div>
+
+                <div id="hunterOptions" class="grid grid-cols-2 gap-3 flex-1 content-center"></div>
+
+                <div id="hunterFeedback" class="hidden p-3 rounded-2xl text-center font-black text-lg mb-3"></div>
+                <button id="newHunterBtn" class="btn-game w-full py-4 bg-pink-500 hover:bg-pink-600 text-white font-black text-lg rounded-2xl">
+                    🎲 Novo Caça-Ângulos
+                </button>
+            </section>
+
+            <!-- ABA 5: RELÓGIO DOS ÂNGULOS -->
+            <section id="tab5" class="tab-content flex-col h-full p-4 relative">
+                <div class="text-center mb-3">
+                    <h2 class="text-xl font-bold text-indigo-900">Relógio dos Ângulos 🕐</h2>
+                    <p class="text-sm text-gray-500 font-semibold">Descubra o menor ângulo entre os ponteiros.</p>
+                </div>
+
+                <div class="flex-1 min-h-0 border-4 border-amber-100 rounded-2xl bg-amber-50 flex items-center justify-center shadow-inner mb-3">
+                    <canvas id="clockCanvas" class="angle-canvas w-full h-full"></canvas>
+                </div>
+
+                <div class="bg-white p-3 rounded-2xl border-2 border-gray-100 shadow-sm text-center mb-3">
+                    <div class="text-xs text-gray-400 font-bold uppercase">Qual é o menor ângulo?</div>
+                    <div class="text-3xl font-black text-indigo-600"><span id="clockTarget">--</span>°</div>
+                </div>
+
+                <div id="clockOptions" class="grid grid-cols-2 gap-2 mb-3"></div>
+                <div id="clockFeedback" class="hidden p-3 rounded-2xl text-center font-black mb-3"></div>
+
+                <button id="newClockBtn" class="btn-game w-full py-4 bg-amber-500 hover:bg-amber-600 text-white font-black text-lg rounded-2xl">
+                    🕐 Novo Horário
+                </button>
+            </section>
+
+            <!-- ABA 6: QUIZ -->
+            <section id="tab6" class="tab-content flex-col h-full p-4 relative overflow-y-auto overscroll-none">
+
+                <div class="text-center mb-4">
+                    <h2 class="text-xl font-bold text-indigo-900">Super Quiz 🏆</h2>
+                    <p class="text-sm text-gray-500 font-semibold">Mostre o que você aprendeu!</p>
+                </div>
+
+                <div id="quizContainer" class="flex-1 flex flex-col">
+                    <div class="mb-4 flex justify-between items-center bg-indigo-50 p-3 rounded-2xl font-black text-indigo-800 shadow-sm border-2 border-indigo-100">
+                        <span class="flex items-center gap-2">⭐ Fase <span id="qCurrent" class="text-xl">1</span>/5</span>
+                        <span class="flex items-center gap-2">🪙 Pontos: <span id="qScore" class="text-xl text-pink-500">0</span></span>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow-lg border-2 border-gray-100 mb-4 flex-1 flex flex-col">
+                        <h3 class="text-lg font-bold text-gray-800 mb-5 flex-1" id="questionText">Pergunta?</h3>
+                        <div id="optionsContainer" class="flex flex-col gap-3"></div>
+                    </div>
+
+                    <button id="nextQuestionBtn" class="hidden btn-game w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-lg rounded-2xl">
+                        Avançar 🚀
+                    </button>
+                </div>
+
+                <div id="quizResult" class="hidden flex-1 flex-col items-center justify-center text-center p-4">
+                    <div class="text-8xl mb-4 animate-bounce">👑</div>
+                    <h2 class="text-3xl font-black text-indigo-900 mb-2">Fim de Jogo!</h2>
+                    <div class="bg-indigo-50 p-6 rounded-3xl border-4 border-indigo-200 mb-6 w-full">
+                        <p class="text-lg text-gray-600 font-bold mb-2">Sua pontuação:</p>
+                        <p class="text-5xl font-black text-pink-500"><span id="finalScore">0</span> / 5</p>
+                    </div>
+                    <button id="restartQuizBtn" class="btn-game w-full py-4 bg-blue-500 hover:bg-blue-600 text-white font-black text-lg rounded-2xl">
+                        🔄 Jogar Novamente
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <nav class="bg-white rounded-t-3xl border-t-2 border-gray-100 flex overflow-x-auto items-center px-1 py-2 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-20 pb-safe">
+            <button class="nav-btn active min-w-[68px] flex-1 flex flex-col items-center text-gray-400" data-target="tab1">
+                <span class="text-xl mb-1">📐</span><span class="text-[10px] font-bold">Medir</span>
+            </button>
+            <button class="nav-btn min-w-[82px] flex-1 flex flex-col items-center text-gray-400 hover:text-indigo-400" data-target="tab2">
+                <span class="text-xl mb-1">🧩</span><span class="text-[10px] font-bold">Congruentes</span>
+            </button>
+            <button class="nav-btn min-w-[78px] flex-1 flex flex-col items-center text-gray-400 hover:text-indigo-400" data-target="tab3">
+                <span class="text-xl mb-1">🍕</span><span class="text-[10px] font-bold">Vizinhos</span>
+            </button>
+            <button class="nav-btn min-w-[82px] flex-1 flex flex-col items-center text-gray-400 hover:text-indigo-400" data-target="tab4">
+                <span class="text-xl mb-1">🎯</span><span class="text-[10px] font-bold">Caça</span>
+            </button>
+            <button class="nav-btn min-w-[82px] flex-1 flex flex-col items-center text-gray-400 hover:text-indigo-400" data-target="tab5">
+                <span class="text-xl mb-1">🕐</span><span class="text-[10px] font-bold">Relógio</span>
+            </button>
+            <button class="nav-btn min-w-[68px] flex-1 flex flex-col items-center text-gray-400 hover:text-indigo-400" data-target="tab6">
+                <span class="text-xl mb-1">🏆</span><span class="text-[10px] font-bold">Quiz</span>
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        // ==========================================
+        // ÁUDIO E EFEITOS
+        // ==========================================
+        let audioCtx;
+        let audioInit = false;
+
+        function initAudio() {
+            if (!audioInit) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                audioInit = true;
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        document.body.addEventListener('click', initAudio, { once: true });
+        document.body.addEventListener('touchstart', initAudio, { once: true });
+
+        const sfx = {
+            playTone: (freq, type, duration, vol = 0.1) => {
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start();
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.stop(audioCtx.currentTime + duration);
+            },
+            click: () => sfx.playTone(600, 'sine', 0.05, 0.05),
+            pop: () => sfx.playTone(800, 'square', 0.05, 0.02),
+            ding: () => {
+                sfx.playTone(880, 'sine', 0.1, 0.1); 
+                setTimeout(() => sfx.playTone(1108.73, 'sine', 0.2, 0.1), 100); 
+            },
+            error: () => {
+                sfx.playTone(150, 'sawtooth', 0.1, 0.1);
+                setTimeout(() => sfx.playTone(100, 'sawtooth', 0.2, 0.1), 100);
+            },
+            victory: () => {
+                const notes = [523.25, 659.25, 783.99, 1046.50]; 
+                notes.forEach((freq, i) => setTimeout(() => sfx.playTone(freq, 'sine', 0.2, 0.1), i * 150));
+            }
+        };
+
+        function fireConfetti(x = '50%', y = '50%') {
+            const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+            const container = document.getElementById('confetti-container');
+            for(let i=0; i<40; i++) {
+                let div = document.createElement('div');
+                div.className = 'absolute rounded-sm';
+                div.style.width = (Math.random() * 8 + 4) + 'px';
+                div.style.height = (Math.random() * 12 + 6) + 'px';
+                div.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                div.style.left = x; div.style.top = y;
+                
+                const dx = (Math.random() - 0.5) * 400;
+                const dy = (Math.random() - 0.8) * 400; 
+                const rot = Math.random() * 720;
+                
+                div.animate([
+                    { transform: `translate(-50%, -50%) rotate(0deg)`, opacity: 1 },
+                    { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) rotate(${rot}deg)`, opacity: 0 }
+                ], { duration: 1000 + Math.random() * 1000, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' });
+                
+                container.appendChild(div);
+                setTimeout(() => div.remove(), 2000);
+            }
+        }
+
+        // ==========================================
+        // NAVEGAÇÃO
+        // ==========================================
+        let currentTabId = 'tab1';
+        const navBtns = document.querySelectorAll('.nav-btn');
+        const tabs = document.querySelectorAll('.tab-content');
+
+        navBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                sfx.click();
+                const target = btn.dataset.target;
+                
+                tabs.forEach(tab => tab.classList.remove('active'));
+                document.getElementById(target).classList.add('active');
+                
+                navBtns.forEach(b => {
+                    b.classList.remove('active', 'text-pink-500');
+                    b.classList.add('text-gray-400');
+                });
+                btn.classList.add('active');
+                btn.classList.remove('text-gray-400');
+
+                currentTabId = target;
+                renderCurrentTab();
+            });
+        });
+
+        // CORRIGIDO: só redimensiona quando o tamanho muda e usa setTransform
+        // (evita acumular scale e o loop de crescimento do canvas).
+        function resizeCanvas(canvas) {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const w = Math.round(rect.width * dpr);
+            const h = Math.round(rect.height * dpr);
+            if (canvas.width !== w || canvas.height !== h) {
+                canvas.width = w;
+                canvas.height = h;
+            }
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            return { w: rect.width, h: rect.height };
+        }
+
+        function renderCurrentTab() {
+            if (currentTabId === 'tab1') renderTab1();
+            if (currentTabId === 'tab2') renderTab2();
+            if (currentTabId === 'tab3') renderTab3();
+            if (currentTabId === 'tab4') newHunterChallenge();
+            if (currentTabId === 'tab5') { newClockChallenge(); }
+        }
+        window.addEventListener('resize', renderCurrentTab);
+
+        function getPointerPos(e, canvas) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        // ==========================================
+        // ABA 1: MEDIR
+        // ==========================================
+        let angle1 = 45;
+        let showProtractor = false;
+        let isDragging1 = false;
+        const canvas1 = document.getElementById('canvas1');
+        const ctx1 = canvas1.getContext('2d');
+
+        document.getElementById('toggleProtractorBtn').addEventListener('click', (e) => {
+            sfx.click();
+            showProtractor = !showProtractor;
+            e.target.innerHTML = showProtractor ? '🚫 Ocultar Transferidor' : '🔍 Mostrar Transferidor';
+            e.target.className = showProtractor
+                ? "btn-game w-full py-4 bg-gray-500 hover:bg-gray-600 text-white font-black text-lg rounded-2xl flex justify-center items-center gap-2"
+                : "btn-game w-full py-4 bg-pink-500 hover:bg-pink-600 text-white font-black text-lg rounded-2xl flex justify-center items-center gap-2";
+            renderTab1();
+        });
+
+        function drawProtractor(ctx, cx, cy, radius) {
+            ctx.save();
+            ctx.globalAlpha = 0.9;
+            ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; ctx.fill();
+            ctx.lineWidth = 3; ctx.strokeStyle = '#ec4899'; ctx.stroke();
+            
+            ctx.beginPath(); ctx.arc(cx, cy, radius * 0.7, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(236, 72, 153, 0.5)'; ctx.stroke();
+
+            ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy);
+            ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
+
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#831843'; ctx.font = 'bold 12px Nunito';
+
+            for (let i = 0; i < 360; i += 10) {
+                let rad = i * Math.PI / 180;
+                let outerX = cx + radius * Math.cos(rad); let outerY = cy - radius * Math.sin(rad);
+                let innerX = cx + (radius - 12) * Math.cos(rad); let innerY = cy - (radius - 12) * Math.sin(rad);
+                
+                ctx.beginPath(); ctx.moveTo(innerX, innerY); ctx.lineTo(outerX, outerY);
+                ctx.lineWidth = i % 90 === 0 ? 3 : 1.5; ctx.strokeStyle = i % 90 === 0 ? '#ec4899' : '#fbcfe8'; ctx.stroke();
+                
+                if (i % 30 === 0) {
+                    let textX = cx + (radius - 28) * Math.cos(rad); let textY = cy - (radius - 28) * Math.sin(rad);
+                    ctx.fillText(i.toString(), textX, textY);
+                }
+            }
+            ctx.restore();
+        }
+
+        function renderTab1() {
+            if (currentTabId !== 'tab1') return;
+            const size = resizeCanvas(canvas1);
+            const cx = size.w / 2, cy = size.h / 2, radius = Math.min(size.w, size.h) * 0.35;
+            ctx1.clearRect(0, 0, size.w, size.h);
+
+            if (showProtractor) drawProtractor(ctx1, cx, cy, radius * 1.15);
+
+            ctx1.beginPath(); ctx1.moveTo(cx, cy); ctx1.lineTo(cx + radius, cy);
+            ctx1.lineWidth = 6; ctx1.lineCap = 'round'; ctx1.strokeStyle = '#312e81'; ctx1.stroke();
+
+            const rad = angle1 * Math.PI / 180;
+            const endX = cx + radius * Math.cos(-rad), endY = cy + radius * Math.sin(-rad);
+
+            ctx1.beginPath(); ctx1.moveTo(cx, cy); ctx1.arc(cx, cy, radius * 0.45, 0, -rad, true); 
+            ctx1.lineTo(cx, cy); ctx1.fillStyle = 'rgba(99, 102, 241, 0.3)'; ctx1.fill();
+            ctx1.lineWidth = 2; ctx1.strokeStyle = '#4f46e5'; ctx1.stroke();
+
+            if (angle1 === 90) {
+                 ctx1.beginPath(); let rectSize = radius * 0.15;
+                 ctx1.moveTo(cx + rectSize, cy); ctx1.lineTo(cx + rectSize, cy - rectSize);
+                 ctx1.lineTo(cx, cy - rectSize); ctx1.strokeStyle = '#ec4899'; ctx1.lineWidth = 3; ctx1.stroke();
+            }
+
+            ctx1.beginPath(); ctx1.moveTo(cx, cy); ctx1.lineTo(endX, endY);
+            ctx1.lineWidth = 6; ctx1.lineCap = 'round'; ctx1.strokeStyle = '#f43f5e'; ctx1.stroke();
+
+            ctx1.beginPath(); ctx1.arc(endX, endY, 16, 0, Math.PI * 2);
+            ctx1.fillStyle = '#f43f5e'; ctx1.fill(); ctx1.lineWidth = 4; ctx1.strokeStyle = 'white'; ctx1.stroke();
+
+            ctx1.beginPath(); ctx1.arc(cx, cy, 8, 0, Math.PI * 2);
+            ctx1.fillStyle = '#312e81'; ctx1.fill();
+
+            document.getElementById('angleDisplay').innerText = `${angle1}°`;
+            
+            const classEl = document.getElementById('angleClassification');
+            if (angle1 === 0) classEl.innerText = "Nulo ➖";
+            else if (angle1 < 90) classEl.innerText = "Agudo 🗡️";
+            else if (angle1 === 90) classEl.innerText = "Reto 📐";
+            else if (angle1 < 180) classEl.innerText = "Obtuso 🛋️";
+            else if (angle1 === 180) classEl.innerText = "Raso ➖";
+            else if (angle1 < 360) classEl.innerText = "Côncavo 🌙";
+            else if (angle1 === 360) classEl.innerText = "Uma Volta 🔄";
+
+            if(angle1 === 90) classEl.className = "text-lg font-black text-emerald-500 tracking-wide";
+            else if(angle1 === 180) classEl.className = "text-lg font-black text-blue-500 tracking-wide";
+            else classEl.className = "text-lg font-black text-pink-500 tracking-wide";
+        }
+
+        let lastAngle1 = angle1;
+        function handleInteract1(e) {
+            e.preventDefault();
+            const pos = getPointerPos(e, canvas1);
+            const rect = canvas1.getBoundingClientRect();
+            let rad = Math.atan2(rect.height/2 - pos.y, pos.x - rect.width/2); 
+            let deg = Math.round(rad * 180 / Math.PI);
+            if (deg < 0) deg += 360;
+            
+            [0, 90, 180, 270, 360].forEach(snap => { if (Math.abs(deg - snap) < 6) deg = snap; });
+            if (deg === 360) deg = 0;
+            if (deg === 0 && lastAngle1 > 300) deg = 360;
+
+            if (deg !== lastAngle1) {
+                if (isDragging1 && deg % 10 === 0) sfx.pop(); 
+                angle1 = deg; lastAngle1 = deg; renderTab1();
+            }
+        }
+
+        canvas1.addEventListener('mousedown', (e) => { isDragging1 = true; sfx.click(); handleInteract1(e); });
+        canvas1.addEventListener('mousemove', (e) => { if (isDragging1) handleInteract1(e); });
+        window.addEventListener('mouseup', () => { if(isDragging1 && (angle1===90 || angle1===180 || angle1===360)) sfx.ding(); isDragging1 = false; });
+        canvas1.addEventListener('touchstart', (e) => { isDragging1 = true; initAudio(); sfx.click(); handleInteract1(e); }, {passive: false});
+        canvas1.addEventListener('touchmove', (e) => { if (isDragging1) handleInteract1(e); }, {passive: false});
+        window.addEventListener('touchend', () => { if(isDragging1 && (angle1===90 || angle1===180 || angle1===360)) sfx.ding(); isDragging1 = false; });
+
+        // ==========================================
+        // ABA 2: CONGRUENTES
+        // ==========================================
+        let targetAngle2 = 60, currentAngle2 = 30, isDragging2 = false, isCongruentSolved = false;
+        const canvas2Target = document.getElementById('canvas2-target'), canvas2Current = document.getElementById('canvas2-current');
+
+        function generateNewCongruentChallenge() {
+            sfx.click();
+            targetAngle2 = Math.floor(Math.random() * 16) * 10 + 20; 
+            currentAngle2 = Math.floor(Math.random() * 170) + 10;
+            if (currentAngle2 === targetAngle2) currentAngle2 += 20; 
+            isCongruentSolved = false;
+            document.getElementById('congruentSuccess').classList.add('hidden');
+            renderTab2();
+        }
+        document.getElementById('newCongruentBtn').addEventListener('click', generateNewCongruentChallenge);
+
+        function drawAngleSimple(ctx, w, h, angle, isTarget) {
+            const cx = Math.max(52, Math.min(w * 0.28, w - 52));
+            const cy = Math.max(h * 0.62, Math.min(h * 0.82, h - 35));
+            const radius = Math.max(55, Math.min(w * 0.58, h * 0.72));
+            ctx.clearRect(0, 0, w, h);
+
+            const rad = angle * Math.PI / 180;
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, radius * 0.4, 0, -rad, true);
+            ctx.fillStyle = isTarget ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)'; ctx.fill();
+            
+            if(angle > 20) {
+                ctx.fillStyle = isTarget ? '#047857' : '#1d4ed8'; ctx.font = 'bold 16px Nunito';
+                ctx.fillText(`${angle}°`, cx + radius*0.5*Math.cos(-rad/2), cy + radius*0.5*Math.sin(-rad/2));
+            }
+
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + radius, cy);
+            ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.strokeStyle = '#1e293b'; ctx.stroke();
+
+            const endX = cx + radius * Math.cos(-rad), endY = cy + radius * Math.sin(-rad);
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(endX, endY);
+            ctx.strokeStyle = isTarget ? '#10b981' : '#3b82f6'; ctx.stroke();
+            ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fillStyle = '#1e293b'; ctx.fill();
+
+            if (!isTarget && !isCongruentSolved) {
+                ctx.beginPath(); ctx.arc(endX, endY, 16, 0, Math.PI * 2);
+                ctx.fillStyle = '#3b82f6'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = 'white'; ctx.stroke();
+            }
+        }
+
+        function renderTab2() {
+            if (currentTabId !== 'tab2') return;
+            const sizeT = resizeCanvas(canvas2Target), sizeC = resizeCanvas(canvas2Current);
+            drawAngleSimple(canvas2Target.getContext('2d'), sizeT.w, sizeT.h, targetAngle2, true);
+            drawAngleSimple(canvas2Current.getContext('2d'), sizeC.w, sizeC.h, currentAngle2, false);
+
+            document.getElementById('targetAngleDisplay').innerText = targetAngle2;
+            document.getElementById('currentAngleDisplay').innerText = currentAngle2;
+
+            if (targetAngle2 === currentAngle2 && !isCongruentSolved) {
+                isCongruentSolved = true; sfx.ding(); fireConfetti();
+                document.getElementById('congruentSuccess').classList.remove('hidden');
+            }
+        }
+
+        let lastAngle2 = currentAngle2;
+        function handleInteract2(e) {
+            if (isCongruentSolved) return; 
+            e.preventDefault();
+            const pos = getPointerPos(e, canvas2Current);
+            const rect = canvas2Current.getBoundingClientRect();
+            const cx = Math.max(52, Math.min(rect.width * 0.28, rect.width - 52));
+            const cy = Math.max(rect.height * 0.62, Math.min(rect.height * 0.82, rect.height - 35));
+            let deg = Math.round(Math.atan2(cy - pos.y, pos.x - cx) * 180 / Math.PI);
+            
+            if (deg < 0) deg = 0; if (deg > 180) deg = 180;
+            if (Math.abs(deg - targetAngle2) < 5) deg = targetAngle2;
+
+            if (deg !== lastAngle2) {
+                if(isDragging2 && deg % 5 === 0) sfx.pop();
+                currentAngle2 = deg; lastAngle2 = deg; renderTab2();
+            }
+        }
+
+        // Pointer Events: um único caminho para mouse, toque e caneta.
+        // setPointerCapture mantém o gesto preso ao canvas, impedindo o "puxão" da página.
+        canvas2Current.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            isDragging2 = true;
+            canvas2Current.setPointerCapture?.(e.pointerId);
+            handleInteract2(e);
+        });
+        canvas2Current.addEventListener('pointermove', (e) => {
+            if (!isDragging2) return;
+            e.preventDefault();
+            handleInteract2(e);
+        });
+        canvas2Current.addEventListener('pointerup', (e) => {
+            e.preventDefault();
+            isDragging2 = false;
+            canvas2Current.releasePointerCapture?.(e.pointerId);
+        });
+        canvas2Current.addEventListener('pointercancel', () => { isDragging2 = false; });
+        canvas2Current.addEventListener('lostpointercapture', () => { isDragging2 = false; });
+
+        // ==========================================
+        // ABA 3: ADJACENTES vs CONSECUTIVOS
+        // ==========================================
+        let mode3 = 'consecutive'; 
+        const canvas3 = document.getElementById('canvas3'), ctx3 = canvas3.getContext('2d');
+        const btnConsecutive = document.getElementById('btnConsecutive'), btnAdjacent = document.getElementById('btnAdjacent'), adjExplanation = document.getElementById('adjExplanation');
+
+        btnConsecutive.addEventListener('click', () => {
+            sfx.click(); mode3 = 'consecutive';
+            btnConsecutive.className = "flex-1 py-3 text-sm font-bold rounded-xl bg-white shadow-md text-blue-600 transition-all";
+            btnAdjacent.className = "flex-1 py-3 text-sm font-bold rounded-xl text-gray-500 transition-all";
+            adjExplanation.innerHTML = "<span class='text-lg block mb-1'>🔥 <strong>Consecutivos:</strong></span>Eles dividem o mesmo vértice e uma linha (lado). Mas repare: a região de um 'invade' a região do outro! Ficam sobrepostos.";
+            renderTab3();
+        });
+
+        btnAdjacent.addEventListener('click', () => {
+            sfx.click(); mode3 = 'adjacent';
+            btnAdjacent.className = "flex-1 py-3 text-sm font-bold rounded-xl bg-white shadow-md text-blue-600 transition-all";
+            btnConsecutive.className = "flex-1 py-3 text-sm font-bold rounded-xl text-gray-500 transition-all";
+            adjExplanation.innerHTML = "<span class='text-lg block mb-1'>✌️ <strong>Adjacentes:</strong></span>São como vizinhos de muro! São consecutivos, mas <em>NÃO misturam suas áreas internas</em>. Ficam lado a lado.";
+            renderTab3();
+        });
+
+        function renderTab3() {
+            if (currentTabId !== 'tab3') return;
+            const size = resizeCanvas(canvas3);
+            const cx = size.w * 0.2, cy = size.h * 0.8, radius = Math.min(size.w, size.h) * 0.7;
+            ctx3.clearRect(0, 0, size.w, size.h);
+
+            ctx3.beginPath(); ctx3.moveTo(cx, cy); ctx3.lineTo(cx + radius, cy);
+            ctx3.lineWidth = 5; ctx3.strokeStyle = '#1e293b'; ctx3.lineCap='round'; ctx3.stroke();
+
+            const rad1 = 30 * Math.PI / 180, rad2 = 70 * Math.PI / 180;
+
+            if (mode3 === 'consecutive') {
+                ctx3.beginPath(); ctx3.moveTo(cx, cy); ctx3.arc(cx, cy, radius * 0.6, 0, -rad2, true);
+                ctx3.fillStyle = 'rgba(59, 130, 246, 0.4)'; ctx3.fill(); 
+                
+                ctx3.beginPath(); ctx3.moveTo(cx, cy); ctx3.arc(cx, cy, radius * 0.45, 0, -rad1, true);
+                ctx3.fillStyle = 'rgba(244, 63, 94, 0.7)'; ctx3.fill(); 
+                
+                ctx3.beginPath(); ctx3.moveTo(cx, cy); ctx3.lineTo(cx + radius * Math.cos(-rad1), cy + radius * Math.sin(-rad1));
+                ctx3.moveTo(cx, cy); ctx3.lineTo(cx + radius * Math.cos(-rad2), cy + radius * Math.sin(-rad2));
+                ctx3.stroke();
+                
+                ctx3.fillStyle = '#1e293b'; ctx3.font = 'bold 14px Nunito';
+                ctx3.fillText('Lado em Comum', cx + radius*0.6, cy + 20);
+            } else {
+                ctx3.beginPath(); ctx3.moveTo(cx, cy); ctx3.arc(cx, cy, radius * 0.45, 0, -rad1, true);
+                ctx3.fillStyle = 'rgba(244, 63, 94, 0.6)'; ctx3.fill(); 
+                
+                ctx3.beginPath(); ctx3.moveTo(cx, cy); ctx3.arc(cx, cy, radius * 0.55, -rad1, -rad2, true);
+                ctx3.fillStyle = 'rgba(16, 185, 129, 0.6)'; ctx3.fill(); 
+                
+                ctx3.beginPath(); ctx3.moveTo(cx, cy); ctx3.lineTo(cx + radius * Math.cos(-rad1), cy + radius * Math.sin(-rad1));
+                ctx3.moveTo(cx, cy); ctx3.lineTo(cx + radius * Math.cos(-rad2), cy + radius * Math.sin(-rad2));
+                ctx3.stroke();
+                
+                ctx3.fillStyle = '#e11d48'; ctx3.font = '900 16px Nunito'; ctx3.fillText('Ângulo 1', cx + radius*0.5, cy - radius*0.15);
+                ctx3.fillStyle = '#047857'; ctx3.fillText('Ângulo 2', cx + radius*0.4, cy - radius*0.5);
+                ctx3.fillStyle = '#1e293b'; ctx3.font = 'bold 12px Nunito';
+                ctx3.fillText('Lado em Comum ->', cx + radius*0.4, cy - radius*0.35 + 10);
+            }
+            ctx3.beginPath(); ctx3.arc(cx, cy, 6, 0, Math.PI*2); ctx3.fillStyle = '#1e293b'; ctx3.fill();
+        }
+
+
+        // ==========================================
+        // JOGO 4: CAÇA-ÂNGULOS
+        // ==========================================
+        const hunterAngles = [30, 45, 60, 90, 120, 135, 150, 180];
+        let hunterTargetAngle = 90;
+        let hunterAnswered = false;
+
+        function drawHunterAngle(canvas, angle, selected = false, correct = false) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const w = rect.width, h = rect.height;
+            canvas.width = Math.max(1, w * dpr);
+            canvas.height = Math.max(1, h * dpr);
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, w, h);
+
+            const cx = w / 2;
+            const cy = h * 0.72;
+            const radius = Math.min(w * 0.34, h * 0.48);
+
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = '#1e293b';
+
+            ctx.beginPath();
+            ctx.moveTo(cx - radius * 0.65, cy);
+            ctx.lineTo(cx + radius, cy);
+            ctx.stroke();
+
+            const rad = angle * Math.PI / 180;
+            const ex = cx + radius * Math.cos(-rad);
+            const ey = cy + radius * Math.sin(-rad);
+
+            ctx.strokeStyle = correct ? '#10b981' : (selected ? '#f43f5e' : '#3b82f6');
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(ex, ey);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, radius * 0.34, 0, -rad, true);
+            ctx.lineTo(cx, cy);
+            ctx.fillStyle = correct ? 'rgba(16,185,129,.25)' : 'rgba(59,130,246,.16)';
+            ctx.fill();
+
+            ctx.fillStyle = correct ? '#047857' : '#1d4ed8';
+            ctx.font = '900 18px Nunito';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${angle}°`, cx, h - 12);
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+            ctx.fillStyle = '#1e293b';
+            ctx.fill();
+        }
+
+        function newHunterChallenge() {
+            hunterAnswered = false;
+            hunterTargetAngle = hunterAngles[Math.floor(Math.random() * hunterAngles.length)];
+            document.getElementById('hunterTarget').textContent = hunterTargetAngle;
+
+            const wrongs = hunterAngles.filter(a => a !== hunterTargetAngle)
+                .sort(() => Math.random() - .5).slice(0, 3);
+            const choices = [hunterTargetAngle, ...wrongs].sort(() => Math.random() - .5);
+
+            const box = document.getElementById('hunterOptions');
+            box.innerHTML = '';
+            const feedback = document.getElementById('hunterFeedback');
+            feedback.className = 'hidden p-3 rounded-2xl text-center font-black text-lg mb-3';
+            feedback.textContent = '';
+
+            choices.forEach((angle, i) => {
+                const card = document.createElement('button');
+                card.className = 'game-card bg-white rounded-2xl border-4 border-slate-100 shadow-sm overflow-hidden p-1 active:scale-95 transition-transform';
+                const canvas = document.createElement('canvas');
+                canvas.className = 'angle-canvas w-full h-36';
+                card.appendChild(canvas);
+                card.onclick = () => {
+                    if (hunterAnswered) return;
+                    hunterAnswered = true;
+                    if (angle === hunterTargetAngle) {
+                        sfx.ding();
+                        fireConfetti('50%', '35%');
+                        feedback.className = 'bg-emerald-400 text-white p-3 rounded-2xl text-center font-black text-lg mb-3';
+                        feedback.textContent = '🎯 Acertou! Esse é o ângulo procurado!';
+                        drawHunterAngle(canvas, angle, false, true);
+                    } else {
+                        sfx.error();
+                        feedback.className = 'bg-rose-400 text-white p-3 rounded-2xl text-center font-black text-lg mb-3';
+                        feedback.textContent = `Quase! Você escolheu ${angle}°. O alvo era ${hunterTargetAngle}°.`;
+                        drawHunterAngle(canvas, angle, true, false);
+                    }
+                    [...box.children].forEach((el, idx) => {
+                        if (choices[idx] === hunterTargetAngle) {
+                            const c = el.querySelector('canvas');
+                            drawHunterAngle(c, choices[idx], false, true);
+                        }
+                    });
+                };
+                box.appendChild(card);
+                requestAnimationFrame(() => drawHunterAngle(canvas, angle));
+            });
+        }
+
+        document.getElementById('newHunterBtn').addEventListener('click', newHunterChallenge);
+
+        // ==========================================
+        // JOGO 5: RELÓGIO DOS ÂNGULOS
+        // ==========================================
+        const clockCanvas = document.getElementById('clockCanvas');
+        let clockHour = 3, clockMinute = 0, clockAnswer = 90, clockAnswered = false;
+
+        function calculateClockAngle(hour, minute) {
+            const h = (hour % 12) * 30 + minute * 0.5;
+            const m = minute * 6;
+            const diff = Math.abs(h - m);
+            return Math.round(Math.min(diff, 360 - diff));
+        }
+
+        function drawClock() {
+            const rect = clockCanvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const w = rect.width, h = rect.height;
+            clockCanvas.width = Math.max(1, w * dpr);
+            clockCanvas.height = Math.max(1, h * dpr);
+            const ctx = clockCanvas.getContext('2d');
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, w, h);
+
+            const cx = w / 2, cy = h / 2;
+            const r = Math.min(w, h) * 0.34;
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#f59e0b';
+            ctx.stroke();
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#92400e';
+            ctx.font = `900 ${Math.max(16, r * .16)}px Nunito`;
+            for (let n = 1; n <= 12; n++) {
+                const a = n * Math.PI / 6 - Math.PI / 2;
+                ctx.fillText(n, cx + Math.cos(a) * r * .78, cy + Math.sin(a) * r * .78);
+            }
+
+            const hourA = (((clockHour % 12) + clockMinute / 60) * 30 - 90) * Math.PI / 180;
+            const minA = (clockMinute * 6 - 90) * Math.PI / 180;
+
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 8;
+            ctx.strokeStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(hourA) * r * .5, cy + Math.sin(hourA) * r * .5);
+            ctx.stroke();
+
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(minA) * r * .72, cy + Math.sin(minA) * r * .72);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+            ctx.fillStyle = '#1e293b';
+            ctx.fill();
+
+            ctx.fillStyle = '#92400e';
+            ctx.font = '900 17px Nunito';
+            ctx.fillText(`${String(clockHour).padStart(2,'0')}:${String(clockMinute).padStart(2,'0')}`, cx, cy + r + 30);
+        }
+
+        function newClockChallenge() {
+            clockAnswered = false;
+            clockHour = Math.floor(Math.random() * 12) + 1;
+            clockMinute = [0, 10, 20, 30, 40, 50][Math.floor(Math.random() * 6)];
+            clockAnswer = calculateClockAngle(clockHour, clockMinute);
+
+            document.getElementById('clockTarget').textContent = '?';
+            const box = document.getElementById('clockOptions');
+            const feedback = document.getElementById('clockFeedback');
+            box.innerHTML = '';
+            feedback.className = 'hidden p-3 rounded-2xl text-center font-black mb-3';
+
+            const candidates = new Set([clockAnswer]);
+            while (candidates.size < 4) {
+                const candidate = [0,30,60,90,120,150,180][Math.floor(Math.random()*7)];
+                candidates.add(candidate);
+            }
+            [...candidates].sort(() => Math.random() - .5).forEach(value => {
+                const b = document.createElement('button');
+                b.className = 'btn-game py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-black rounded-xl';
+                b.textContent = `${value}°`;
+                b.onclick = () => {
+                    if (clockAnswered) return;
+                    clockAnswered = true;
+                    document.getElementById('clockTarget').textContent = clockAnswer;
+                    if (value === clockAnswer) {
+                        sfx.ding();
+                        fireConfetti('50%', '35%');
+                        feedback.className = 'bg-emerald-400 text-white p-3 rounded-2xl text-center font-black mb-3';
+                        feedback.textContent = '🕐 Perfeito! Você leu o relógio como um mestre.';
+                    } else {
+                        sfx.error();
+                        feedback.className = 'bg-rose-400 text-white p-3 rounded-2xl text-center font-black mb-3';
+                        feedback.textContent = `Não foi dessa vez. O menor ângulo é ${clockAnswer}°.`;
+                    }
+                };
+                box.appendChild(b);
+            });
+            requestAnimationFrame(drawClock);
+        }
+
+        document.getElementById('newClockBtn').addEventListener('click', newClockChallenge);
+
+        window.addEventListener('resize', () => {
+            if (currentTabId === 'tab4') newHunterChallenge();
+            if (currentTabId === 'tab5') drawClock();
+        });
+
+        // ==========================================
+        // ABA 6: QUIZ
+        // ==========================================
+        const quizData = [
+            { q: "Onde os dois lados de um ângulo se encontram? 🤔", options: ["No meio", "No Vértice", "Na Base", "No Centro"], answer: 1 },
+            { q: "Que ferramenta a gente usa pra medir os ângulos na vida real? 📏", options: ["Régua", "Compasso", "Esquadro", "Transferidor"], answer: 3 },
+            { q: "Um ângulo reto (aquele da quina da parede) mede exatamente...", options: ["45 graus", "180 graus", "90 graus", "360 graus"], answer: 2 },
+            { q: "O ângulo de 180° parece uma linha reta! Como ele é chamado? ➖", options: ["Raso", "Agudo", "Completo", "Obtuso"], answer: 0 },
+            { q: "Se dois ângulos são Adjacentes, eles...", options: ["Têm o mesmo tamanho", "Ficam separados", "São vizinhos e não se misturam por dentro!", "Somam 90 graus sempre"], answer: 2 }
+        ];
+
+        let currentQuestion = 0, score = 0, answered = false;
+
+        function loadQuestion() {
+            answered = false;
+            document.getElementById('nextQuestionBtn').classList.add('hidden');
+            const q = quizData[currentQuestion];
+            document.getElementById('qCurrent').innerText = currentQuestion + 1;
+            document.getElementById('qScore').innerText = score * 100;
+            document.getElementById('questionText').innerText = q.q;
+
+            const optsCont = document.getElementById('optionsContainer');
+            optsCont.innerHTML = '';
+            q.options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-option w-full text-left p-4 rounded-2xl border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 font-bold text-gray-700 flex items-center gap-3';
+                btn.innerHTML = `<span class="bg-white w-8 h-8 rounded-full flex items-center justify-center text-indigo-500 shadow-sm border border-gray-100">${['A','B','C','D'][index]}</span> ${opt}`;
+                btn.onclick = () => selectOption(index, btn);
+                optsCont.appendChild(btn);
+            });
+        }
+
+        function selectOption(index, btn) {
+            if (answered) return;
+            answered = true;
+            const q = quizData[currentQuestion];
+            const buttons = document.getElementById('optionsContainer').querySelectorAll('button');
+            
+            if (index === q.answer) {
+                sfx.ding(); fireConfetti('50%', '30%');
+                btn.classList.add('correct');
+                score++;
+                document.getElementById('qScore').innerText = score * 100;
+            } else {
+                sfx.error();
+                btn.classList.add('wrong');
+                buttons[q.answer].classList.add('correct'); 
+            }
+            document.getElementById('nextQuestionBtn').classList.remove('hidden');
+        }
+
+        document.getElementById('nextQuestionBtn').addEventListener('click', () => {
+            sfx.click(); currentQuestion++;
+            if (currentQuestion < quizData.length) loadQuestion();
+            else showResults();
+        });
+
+        function showResults() {
+            sfx.victory();
+            fireConfetti('30%', '50%'); setTimeout(() => fireConfetti('70%', '50%'), 400);
+            document.getElementById('quizContainer').classList.add('hidden');
+            const resultScreen = document.getElementById('quizResult');
+            resultScreen.classList.remove('hidden'); resultScreen.classList.add('flex');
+            document.getElementById('finalScore').innerText = score;
+        }
+
+        document.getElementById('restartQuizBtn').addEventListener('click', () => {
+            sfx.click(); currentQuestion = 0; score = 0;
+            document.getElementById('quizContainer').classList.remove('hidden');
+            const resultScreen = document.getElementById('quizResult');
+            resultScreen.classList.add('hidden'); resultScreen.classList.remove('flex');
+            loadQuestion();
+        });
+
+        // Inicialização Global
+        setTimeout(() => {
+            renderCurrentTab();
+            generateNewCongruentChallenge();
+            newHunterChallenge();
+            newClockChallenge();
+            loadQuestion();
+        }, 100);
+
+        // ==========================================
+        // BLOQUEIO DEFINITIVO DE ROLAGEM/EFEITO ELÁSTICO
+        // ==========================================
+        document.addEventListener('touchmove', function(e) {
+            // Verifica se o usuário está tocando dentro da aba do Quiz
+            const isQuizTab = e.target.closest('#tab6');
+            
+            // Se NÃO estiver no quiz, bloqueia qualquer tentativa de arrastar a tela
+            if (!isQuizTab) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
